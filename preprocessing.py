@@ -35,7 +35,6 @@ col_indexes = COL_TO_INDEX.values()
 
 def preprocess_csv(file: str) -> DataFrame:
     # STEP ONE: Load file with selected columns and column names
-    #print(f" - STEP ONE: loading")
     df = spark.read.csv(
         file,
         header=False,
@@ -47,7 +46,6 @@ def preprocess_csv(file: str) -> DataFrame:
 
     # STEP TWO: Filter loans that are FRMs, not interest-only, and have a zero-balance code and
     #           cast UPB to integers
-    #print(f" - STEP TWO: filtering")
     df = df.filter(
         (col("amortization_type") == "FRM") &
         (col("interest_only") == "N") &
@@ -57,7 +55,6 @@ def preprocess_csv(file: str) -> DataFrame:
     ).withColumn("orig_upb", col("orig_upb").cast(IntegerType()))
 
     # STEP THREE: Compute cumulative interest paid
-    #print(f" - STEP THREE: computing interest")
     def get_months(date: int) -> int:
         date_str = str(date).zfill(6)
         month = int(date_str[:2])
@@ -103,7 +100,6 @@ def preprocess_csv(file: str) -> DataFrame:
     ).drop("orig_interest_rate", "orig_loan_term", "orig_date", "zero_balance_date")
 
     # STEP FOUR: Compute LGDs for defaulted loans
-    #print(f" - STEP FOUR: computing LGDs")
     defaulted_costs_cols = [col for col in df.columns if col.endswith("_costs")]
     defaulted_proceeds_cols = [col for col in df.columns if col.endswith("_proceeds")]
     defaulted_codes = [2, 3, 9, 15, 16]
@@ -139,7 +135,6 @@ def preprocess_csv(file: str) -> DataFrame:
     ).drop("zero_balance_code", *defaulted_costs_cols, *defaulted_proceeds_cols)
 
     # STEP FIVE: Compute net
-    #print(f" - STEP FIVE: computing net")
     df = df.withColumn(
         "net",
         when(
