@@ -159,7 +159,6 @@ for year in years:
         quarter_df = preprocess_csv(f"data/{year}Q{quarter}.csv")
         year_df = quarter_df if year_df is None else year_df.union(quarter_df)
 
-    print(f"Creating data/{year}.csv and data/{year}.parquet")
+    print(f"Creating data/{year}.csv")
     year_df_pd = year_df.toPandas()
     year_df_pd.to_csv(f"data/{year}.csv", index=False)
-    year_df_pd.to_parquet(f"data/{year}.parquet", index=False)
