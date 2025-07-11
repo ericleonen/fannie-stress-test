@@ -35,6 +35,6 @@ def simulate_portfolio(
         np.take(net_defaulted, index_defaulted).sum(axis=1)
 
     return pd.DataFrame({
-        "net": net,
-        "return": net / investment
+        "Net Return": net,
+        "Percentage Return": net / investment
     })
