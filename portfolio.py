@@ -4,7 +4,7 @@ import pandas as pd
 DATA = pd.concat([
     pd.read_csv(f"data/{year}.csv")
     for year in range(2020, 2024 + 1)
-]).reset_index().drop(columns=["index"])
+]).reset_index().drop(columns=["index"]).dropna()
 
 def simulate_portfolio(
     data: pd.DataFrame = DATA,
@@ -35,6 +35,6 @@ def simulate_portfolio(
         np.take(net_defaulted, index_defaulted).sum(axis=1)
 
     return pd.DataFrame({
-        "Net Return": net,
-        "Percentage Return": net / investment
+        "net": net,
+        "percentage": net / investment
     })

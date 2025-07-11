@@ -2,8 +2,10 @@ import streamlit as st
 from portfolio import simulate_portfolio
 import plotly.express as px
 import plotly.graph_objects as go
-from scipy.stats import norm
+from scipy.stats import norm, skew, kurtosis
 import numpy as np
+from metrics import value_at_risk, expected_shortfall
+from format import format_returns_type
 
 st.set_page_config(
     page_title="Fannie Mae Stress Testing Visualizer",
@@ -15,59 +17,109 @@ st.title(":blue[Fannie Mae] Stress Testing Visualizer")
 with st.container(border=True):
     st.text("Simulation Settings")
 
-    default_rate = st.slider(
+    orig_default_rate = st.slider(
+        "Original default rate",
+        value=2.0,
+        min_value=0.0,
+        max_value=100.0,
+        step=0.1
+    ) / 100
+    stress_default_rate = st.slider(
         "Default rate", 
-        value=0.2, 
+        value=10.0, 
         min_value=0.0, 
         max_value=100.0, 
         step=0.1
     ) / 100
     portfolio_size = st.select_slider(
         "Portfolio size", 
-        options=[10**k for k in range(2, 6 + 1)],
+        options=[100, 500, 1000, 5000, 10000],
+        value=1000
     )
-
-with st.container(border=True):
-    distribution_type = st.radio(
+    returns_type = st.radio(
         "I want to analyze:", 
-        options=["Net Return", "Percentage Return"],
+        options=["net", "percentage"],
+        format_func=format_returns_type,
         index=0
     )
 
+with st.container(border=True):
     with st.spinner("Simulating portfolio...", show_time=True):
-        result = simulate_portfolio(
-            default_rate=default_rate, 
+        orig_returns = simulate_portfolio(
+            default_rate=orig_default_rate, 
             n=portfolio_size
-        )
-        mu, sigma = norm.fit(result[distribution_type].dropna())
+        )[returns_type]
+        stress_returns = simulate_portfolio(
+            default_rate=stress_default_rate, 
+            n=portfolio_size
+        )[returns_type]
+    
+    orig_mean, orig_std = norm.fit(orig_returns)
+    orig_pdf_x = np.linspace(
+        orig_returns.min(),
+        orig_returns.max(),
+        num=128
+    )
+    orig_pdf_y = norm.pdf(orig_pdf_x, orig_mean, orig_std)
 
-    fig = px.histogram(
-        result,
-        x=distribution_type,
-        nbins=128,
+    orig_hist = go.Histogram(
+        x=orig_returns,
+        nbinsx=128,
         histnorm="probability density",
-        title=f"Distribution of {distribution_type}"
+        opacity=0.4,
+        marker=dict(
+            color="gray"
+        ),
+        name="Original returns"
     )
-    fig.update_layout(bargap=0.01)
-
-    x_curve = np.linspace(
-        result[distribution_type].min(),
-        result[distribution_type].max(),
-        128
-    )
-    pdf_curve = norm.pdf(x_curve, mu, sigma)
-
-    fig.add_trace(
-        go.Scatter(
-            x=x_curve,
-            y=pdf_curve,
-            mode="lines",
-            name="Fitted Normal PDF",
-            line={
-                "color": "red",
-                "width": 2
-            }
-        )
+    orig_pdf = go.Scatter(
+        x=orig_pdf_x,
+        y=orig_pdf_y,
+        mode="lines",
+        line=dict(
+            color="gray",
+            width=2
+        ),
+        showlegend=False
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    stress_mean, stress_std = norm.fit(stress_returns)
+    stress_pdf_x = np.linspace(
+        stress_returns.min(),
+        stress_returns.max(),
+        num=128
+    )
+    stress_pdf_y = norm.pdf(stress_pdf_x, stress_mean, stress_std)
+
+    stress_hist = go.Histogram(
+        x=stress_returns,
+        nbinsx=128,
+        histnorm="probability density",
+        opacity=0.4,
+        marker=dict(
+            color="red"
+        ),
+        name="Stress returns"
+    )
+    stress_pdf = go.Scatter(
+        x=stress_pdf_x,
+        y=stress_pdf_y,
+        mode="lines",
+        line=dict(
+            color="red",
+            width=2
+        ),
+        showlegend=False
+    )
+
+    fig = go.Figure(data=[orig_hist, orig_pdf, stress_hist, stress_pdf])
+    fig.update_layout(
+        bargap=0,
+        xaxis_title=format_returns_type(returns_type),
+        yaxis_title="Density",
+        title=f"Original vs. Stress {format_returns_type(returns_type, title=True)}s"
+    )
+    st.plotly_chart(
+        fig,
+        use_container_width=True
+    )
