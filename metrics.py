@@ -36,4 +36,4 @@ def expected_shortfall(returns: pd.Series, alpha: float = 0.05) -> float:
         The ES value. This is the average losses in the tail beyond VaR calculated at the
         `1 - alpha`  confidence level.
     """
-    return returns[returns, value_at_risk(returns, alpha)].mean()
+    return returns[returns <= value_at_risk(returns, alpha)].mean()

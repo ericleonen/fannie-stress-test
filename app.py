@@ -1,21 +1,20 @@
 import streamlit as st
 from portfolio import simulate_portfolio
-import plotly.express as px
 import plotly.graph_objects as go
 from scipy.stats import norm, skew, kurtosis
 import numpy as np
 from metrics import value_at_risk, expected_shortfall
 from format import format_returns_type
+import pandas as pd
 
 st.set_page_config(
     page_title="Fannie Mae Stress Testing Visualizer",
     page_icon="🏠"
 )
 
-st.title(":blue[Fannie Mae] Stress Testing Visualizer")
+st.title(":primary[Fannie Mae] Stress Testing Visualizer")
 
-with st.container(border=True):
-    st.text("Simulation Settings")
+with st.expander(":primary[**Simulation Settings**]"):
 
     orig_default_rate = st.slider(
         "Original default rate",
@@ -25,7 +24,7 @@ with st.container(border=True):
         step=0.1
     ) / 100
     stress_default_rate = st.slider(
-        "Default rate", 
+        "Stressed default rate", 
         value=10.0, 
         min_value=0.0, 
         max_value=100.0, 
@@ -64,7 +63,7 @@ with st.container(border=True):
 
     orig_hist = go.Histogram(
         x=orig_returns,
-        nbinsx=128,
+        nbinsx=64,
         histnorm="probability density",
         opacity=0.4,
         marker=dict(
@@ -78,7 +77,7 @@ with st.container(border=True):
         mode="lines",
         line=dict(
             color="gray",
-            width=2
+            width=3
         ),
         showlegend=False
     )
@@ -93,13 +92,13 @@ with st.container(border=True):
 
     stress_hist = go.Histogram(
         x=stress_returns,
-        nbinsx=128,
+        nbinsx=64,
         histnorm="probability density",
         opacity=0.4,
         marker=dict(
             color="red"
         ),
-        name="Stress returns"
+        name="Stressed returns"
     )
     stress_pdf = go.Scatter(
         x=stress_pdf_x,
@@ -107,7 +106,7 @@ with st.container(border=True):
         mode="lines",
         line=dict(
             color="red",
-            width=2
+            width=3
         ),
         showlegend=False
     )
@@ -117,9 +116,29 @@ with st.container(border=True):
         bargap=0,
         xaxis_title=format_returns_type(returns_type),
         yaxis_title="Density",
-        title=f"Original vs. Stress {format_returns_type(returns_type, title=True)}s"
+        title=f"Original (2% default rate) vs. Stressed (3% default rate) {format_returns_type(returns_type, title=True)}s"
     )
     st.plotly_chart(
         fig,
         use_container_width=True
     )
+
+    metrics_df = pd.DataFrame({
+        ":gray[**Original**]": [
+            value_at_risk(orig_returns),
+            expected_shortfall(orig_returns),
+            orig_returns.std(ddof=1),
+            skew(orig_returns),
+            kurtosis(orig_returns)
+        ],
+        ":red[**Stressed**]": [
+            value_at_risk(stress_returns),
+            expected_shortfall(stress_returns),
+            stress_returns.std(ddof=1),
+            skew(stress_returns),
+            kurtosis(stress_returns)
+        ]
+    })
+    metrics_df.index = ["VaR", "ES", "Vol.", "Skew", "Kurt."]
+
+    st.table(metrics_df.map(lambda x: f"{x:.2f}"))
